@@ -3,7 +3,6 @@ const Token = require('../models/token');
 const { isTokenValid, attachCookiesToResponse } = require('../utils/jwt');
 
 const authenticateUser = async (req, res, next) => {
-  console.log(req.signedCookies);
   const { accessToken, refreshToken } = req.signedCookies;
 
   try {
@@ -43,8 +42,19 @@ const authorizePermissions = (role) => {
     next();
   };
 };
+const applicationPermissions = () => {
+  return (req, res, next) => {
+    if (!req.user.isApproved) {
+      throw new CustomError.UnauthorizedError(
+        'Unauthorized to access this route'
+      );
+    }
+    next();
+  };
+};
 
 module.exports = {
   authenticateUser,
   authorizePermissions,
+  applicationPermissions,
 };
