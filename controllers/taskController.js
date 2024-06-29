@@ -12,6 +12,7 @@ const finishedTask = async (req, res) => {
     {
       _id: taskId,
       user: req.user.id,
+      status: { $in: ['ongoing', 'rejected'] },
     },
     {
       status: 'completed',
@@ -36,6 +37,7 @@ const closeOutTask = async (req, res) => {
   const task = await Task.findOneAndUpdate(
     {
       _id: taskId,
+      status: { $in: ['completed'] },
     },
     {
       status: 'closed',
@@ -61,6 +63,7 @@ const redoTask = async (req, res) => {
   const task = await Task.findOneAndUpdate(
     {
       _id: taskId,
+      status: { $in: ['completed'] },
     },
     {
       status: 'rejected',
