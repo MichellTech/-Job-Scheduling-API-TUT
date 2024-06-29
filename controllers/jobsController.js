@@ -14,7 +14,7 @@ const createJob = async (req, res) => {
 };
 
 const getAllJobs = async (req, res) => {
-  const job = await Job.find({});
+  const job = await Job.find({ isOpen: true });
   res.status(StatusCodes.OK).json({ count: job.length, job });
 };
 const getSingleJob = async (req, res) => {

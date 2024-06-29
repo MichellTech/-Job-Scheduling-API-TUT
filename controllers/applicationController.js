@@ -3,7 +3,7 @@ const CustomError = require('../errors');
 const Application = require('../models/application');
 const Job = require('../models/job');
 const Task = require('../models/task');
-
+const History = require('../models/history');
 const applyForJob = async (req, res) => {
   const { jobId } = req.body;
   if (!jobId) {
@@ -31,6 +31,11 @@ const applyForJob = async (req, res) => {
     );
   }
   const apply = await Application.create(req.body);
+  await History.create({
+    application: apply._id,
+    job: jobId,
+    user: req.user.id,
+  });
 
   res.status(StatusCodes.CREATED).json({ apply, msg: 'Application sent' });
 };
@@ -51,7 +56,7 @@ const withdrawApplication = async (req, res) => {
   });
 
   if (!application || !application.job.isOpen) {
-    throw new CustomError.NotFoundError('Application not found');
+    throw new CustomError.NotFoundError('Application not found oo');
   }
 
   if (application.user.toString() !== req.user.id) {
@@ -61,14 +66,22 @@ const withdrawApplication = async (req, res) => {
   }
 
   await Application.deleteOne({ _id: applicationId });
-
+  await History.findOneAndUpdate(
+    { application: applicationId.toString() },
+    {
+      status: 'withdrawn',
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
   res
     .status(StatusCodes.OK)
     .json({ msg: 'your application hass been withdrawn' });
 };
 const approveApplication = async (req, res) => {
   const { applicationId } = req.body;
-  console.log(applicationId);
 
   const application = await Application.findOne({ _id: applicationId })
     .populate({
@@ -81,8 +94,9 @@ const approveApplication = async (req, res) => {
     });
 
   if (!application) {
-    throw new CustomError.NotFoundError('Application not found ');
+    throw new CustomError.NotFoundError('Application not found');
   }
+
   if (!application.job.isOpen) {
     throw new CustomError.NotFoundError('Job is closed');
   }
@@ -100,6 +114,30 @@ const approveApplication = async (req, res) => {
     throw new CustomError.NotFoundError('Job not found');
   }
 
+  // Update histories tied to the job, except for the approved user and withdrawn applications
+  await History.updateMany(
+    {
+      job: application.job._id,
+      user: { $ne: application.user._id },
+      status: 'pending', // Only update pending statuses
+    },
+    { status: 'rejected' }
+  );
+
+  // Update the history for the approved user
+  await History.findOneAndUpdate(
+    { job: application.job._id, user: application.user._id, status: 'pending' },
+    { status: 'assigned' },
+    { new: true, runValidators: true }
+  );
+
+  // Mark all applications for the job as treated
+  await Application.updateMany(
+    { job: application.job._id },
+    { status: 'treated' },
+    { new: true, runValidators: true }
+  );
+
   const task = await Task.create({
     job: application.job._id,
     user: application.user._id,
@@ -111,7 +149,39 @@ const approveApplication = async (req, res) => {
 };
 
 const denyApplication = async (req, res) => {
-  res.status(StatusCodes.OK).json({ msg: 'Application denied' });
+  const { applicationId } = req.body;
+
+  const application = await Application.findOne({ _id: applicationId })
+    .populate({
+      path: 'job',
+      select: 'position client isOpen',
+    })
+    .populate({
+      path: 'user',
+      select: 'name email',
+    });
+
+  if (!application) {
+    throw new CustomError.NotFoundError('Application not found oo');
+  }
+
+  if (!application.job.isOpen) {
+    throw new CustomError.NotFoundError('Job is closed');
+  }
+
+  await History.findOneAndUpdate(
+    { job: application.job._id, user: application.user._id },
+    { status: 'rejected' },
+    { new: true, runValidators: true }
+  );
+
+  await Application.findOneAndUpdate(
+    { _id: applicationId, user: application.user._id },
+    { status: 'treated' },
+    { new: true, runValidators: true }
+  );
+
+  res.status(StatusCodes.OK).json({ application, msg: 'Application rejected' });
 };
 const getAllApplications = async (req, res) => {
   const application = await Application.find({})
@@ -143,7 +213,14 @@ const getSingleApplication = async (req, res) => {
   res.status(StatusCodes.OK).json({ application });
 };
 const getUserApplications = async (req, res) => {
-  res.status(StatusCodes.OK).json({ msg: 'all user applications' });
+  const history = await History.find({
+    user: req.user.id,
+  }).populate({
+    path: 'job',
+    select: 'position client isOpen',
+  });
+
+  res.status(StatusCodes.OK).json({ count: history.length, history });
 };
 
 module.exports = {

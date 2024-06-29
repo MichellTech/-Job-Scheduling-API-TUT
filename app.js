@@ -12,6 +12,8 @@ const errorHandlerMiddleware = require('./middleware/error-handler');
 const authRouter = require('./routes/authRoutes');
 const jobsRouter = require('./routes/jobsRoutes');
 const applicationsRouter = require('./routes/applicationRoutes');
+const taskRouter = require('./routes/taskRoutes');
+const userRouter = require('./routes/userRoutes');
 app.use(morgan('tiny'));
 app.use(cookieParser(process.env.JWT_SECRET));
 app.use(express.json());
@@ -22,6 +24,8 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/jobs', jobsRouter);
 app.use('/api/v1/applications', applicationsRouter);
+app.use('/api/v1/tasks', taskRouter);
+app.use('/api/v1/user', userRouter);
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
 

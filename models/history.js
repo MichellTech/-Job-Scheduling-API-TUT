@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const ApplicationSchema = new mongoose.Schema(
+const HistorySchema = new mongoose.Schema(
   {
     job: {
       type: mongoose.Types.ObjectId,
@@ -12,14 +12,19 @@ const ApplicationSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    application: {
+      type: mongoose.Types.ObjectId,
+      ref: 'Application',
+      required: true,
+    },
     status: {
       type: String,
       required: true,
-      default: 'not-treated',
-      enum: ['treated', 'not-treated'],
+      default: 'pending',
+      enum: ['assigned', 'rejected', 'pending', 'withdrawn'],
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Application', ApplicationSchema);
+module.exports = mongoose.model('History', HistorySchema);
